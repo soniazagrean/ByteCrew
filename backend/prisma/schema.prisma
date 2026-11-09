@@ -8,6 +8,7 @@ model Document {
   title          String
   course         String
   year           Int
+  semester       Int
   specialization String
   tags           String[]       @default([])
   fileUrl        String
@@ -16,8 +17,8 @@ model Document {
   downloadCount  Int            @default(0)
   status         DocumentStatus @default(visible)
 
-  uploaderId     String
-  uploader       User           @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  uploaderId     String?
+  uploader       User?           @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
 
   favorites      DocumentFavorite[]
   ratings        DocumentRating[]
@@ -25,5 +26,5 @@ model Document {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  @@index([course, year, specialization])
+  @@index([course, year, semester, specialization])
 }

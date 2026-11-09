@@ -44,6 +44,16 @@ export class CreateDocumentDto {
     year: number;
 
     @ApiProperty({
+        description: 'Semestrul destinat materialului (1 / 2)',
+        example: 1,
+    })
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(2)
+    semester: number;
+
+    @ApiProperty({
         description: 'Specializarea / profilul academic',
         example: 'Matematica Informatica',
     })
@@ -70,7 +80,7 @@ export class CreateDocumentDto {
         }
         return value;
     })
-    @IsArray()git diff origin/main
+    @IsArray()
     @IsString({ each: true })
     tags?: string[];
 }
