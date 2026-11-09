@@ -1,0 +1,29 @@
+enum DocumentStatus {
+  visible
+  removed
+}
+
+model Document {
+  id             String         @id @default(uuid())
+  title          String
+  course         String
+  year           Int
+  specialization String
+  tags           String[]       @default([])
+  fileUrl        String
+  fileType       String         // 'pdf' sau 'docx'
+  sizeBytes      Int
+  downloadCount  Int            @default(0)
+  status         DocumentStatus @default(visible)
+
+  uploaderId     String
+  uploader       User           @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  favorites      DocumentFavorite[]
+  ratings        DocumentRating[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([course, year, specialization])
+}
