@@ -1,0 +1,5 @@
+{
+  "name": "student-app",
+  "private": true,
+  "workspaces": ["backend", "frontend"]
+}
