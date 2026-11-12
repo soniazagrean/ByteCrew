@@ -55,6 +55,7 @@ domain, e.g. `document.ts`), also matching that branch.
 | Email Service | `integrations/email` |
 | External LLM Provider | `integrations/llm` |
 | Cloud Object Storage | `integrations/storage` |
+| *(not its own box — upload security, BYT-86)* | `integrations/antivirus` (ClamAV via clamd; dev container in `infra/docker/docker-compose.dev.yml`) |
 
 ## Persistence & File Storage
 
