@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DocumentFileType {
+  pdf
+  docx
+}
+
+enum DocumentStatus {
+  visible
+  removed
+}
+
+model Document {
+  id             String   @id @default(uuid())
+  title          String
+  course         String
+  year           Int
+  semester       Int
+  specialization String
+  tags           String[] @default([])
+
+  fileKey   String
+  fileType  DocumentFileType
+  sizeBytes Int
+
+  downloadCount Int            @default(0)
+  status        DocumentStatus @default(visible)
+
+  uploaderId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([course, year, specialization, semester])
+}
