@@ -6,7 +6,7 @@ export interface AcademicDocument {
     semester: number;
     specialization: string;
     tags: string[];
-    fileUrl: string;
+    fileKey: string;
     fileType: 'pdf' | 'docx';
     sizeBytes: number;
     downloadCount: number;

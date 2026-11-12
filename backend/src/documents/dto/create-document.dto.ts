@@ -21,7 +21,7 @@ export class CreateDocumentDto {
     @IsNotEmpty()
     @MinLength(3)
     @MaxLength(150)
-    title: string;
+    title!: string;
 
     @ApiProperty({
         description: 'Numele materiei / cursului',
@@ -31,7 +31,7 @@ export class CreateDocumentDto {
     @IsNotEmpty()
     @MinLength(2)
     @MaxLength(100)
-    course: string;
+    course!: string;
 
     @ApiProperty({
         description: 'Anul de studiu caruia ii este destinat materialul (1 - 6)',
@@ -41,7 +41,7 @@ export class CreateDocumentDto {
     @IsInt()
     @Min(1)
     @Max(6)
-    year: number;
+    year!: number;
 
     @ApiProperty({
         description: 'Semestrul destinat materialului (1 / 2)',
@@ -51,7 +51,7 @@ export class CreateDocumentDto {
     @IsInt()
     @Min(1)
     @Max(2)
-    semester: number;
+    semester!: number;
 
     @ApiProperty({
         description: 'Specializarea / profilul academic',
@@ -61,7 +61,7 @@ export class CreateDocumentDto {
     @IsNotEmpty()
     @MinLength(2)
     @MaxLength(100)
-    specialization: string;
+    specialization!: string;
 
     @ApiProperty({
         description: 'Lista de etichete pentru cautare rapida',
