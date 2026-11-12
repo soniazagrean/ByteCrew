@@ -4,7 +4,7 @@ import * as request from 'supertest';
 import { DocumentsModule } from '../src/documents/documents.module';
 import { DOCUMENT_MAX_UPLOAD_BYTES } from '../src/documents/upload/upload.constants';
 import { AntivirusService } from '../src/integrations/antivirus/antivirus.service';
-import { StorageService } from '../src/integrations/storage/storage.service';
+import { StorageService } from '../src/storage/storage.service';
 import {
   DOCX_MIME,
   FAKE_EXE,
@@ -18,8 +18,9 @@ import {
 describe('POST /documents/upload (e2e)', () => {
   let app: INestApplication;
   const antivirus = { scan: jest.fn() };
-  const storage = { putObject: jest.fn() };
-  const STORAGE_KEY = /^documents\/[0-9a-f-]{36}\.(pdf|docx)$/;
+  const storage = { uploadDocument: jest.fn() };
+  const PUBLIC_ID = 'cloudinary-public-id';
+  const STORAGE_NAME = /^[0-9a-f-]{36}\.(pdf|docx)$/;
 
   const post = () => request(app.getHttpServer()).post('/documents/upload');
 
@@ -41,7 +42,7 @@ describe('POST /documents/upload (e2e)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     antivirus.scan.mockResolvedValue({ clean: true });
-    storage.putObject.mockImplementation(async ({ key }: { key: string }) => ({ key }));
+    storage.uploadDocument.mockResolvedValue({ public_id: PUBLIC_ID });
   });
 
   describe('accepts', () => {
@@ -49,31 +50,27 @@ describe('POST /documents/upload (e2e)', () => {
       const res = await post().attach('file', SAMPLE_PDF, { filename: 'edp.pdf', contentType: PDF_MIME }).expect(201);
 
       expect(res.body).toEqual({
-        fileKey: expect.stringMatching(STORAGE_KEY),
+        fileKey: PUBLIC_ID,
         fileType: 'pdf',
         sizeBytes: SAMPLE_PDF.length,
       });
       expect(antivirus.scan).toHaveBeenCalledTimes(1);
-      expect(storage.putObject).toHaveBeenCalledWith({
-        key: res.body.fileKey,
-        body: SAMPLE_PDF,
-        contentType: PDF_MIME,
-      });
+      expect(storage.uploadDocument).toHaveBeenCalledWith(SAMPLE_PDF, expect.stringMatching(/\.pdf$/));
     });
 
     it('a valid DOCX -> 201', async () => {
       const res = await post().attach('file', SAMPLE_DOCX, { filename: 'edp.docx', contentType: DOCX_MIME }).expect(201);
 
       expect(res.body).toMatchObject({ fileType: 'docx', sizeBytes: SAMPLE_DOCX.length });
-      expect(storage.putObject).toHaveBeenCalledWith(expect.objectContaining({ contentType: DOCX_MIME }));
+      expect(storage.uploadDocument).toHaveBeenCalledWith(SAMPLE_DOCX, expect.stringMatching(/\.docx$/));
     });
 
-    it('never uses the client filename in the storage key', async () => {
+    it('never uses the client filename as the stored name', async () => {
       await post()
         .attach('file', SAMPLE_PDF, { filename: '..%2F..%2Fetc%2Fpasswd.pdf', contentType: PDF_MIME })
         .expect(201);
 
-      expect(storage.putObject.mock.calls[0][0].key).toMatch(STORAGE_KEY);
+      expect(storage.uploadDocument.mock.calls[0][1]).toMatch(STORAGE_NAME);
     });
   });
 
@@ -89,7 +86,7 @@ describe('POST /documents/upload (e2e)', () => {
       await post().attach('file', buffer, { filename, contentType }).expect(415);
 
       expect(antivirus.scan).not.toHaveBeenCalled();
-      expect(storage.putObject).not.toHaveBeenCalled();
+      expect(storage.uploadDocument).not.toHaveBeenCalled();
     });
   });
 
@@ -97,7 +94,7 @@ describe('POST /documents/upload (e2e)', () => {
     const big = Buffer.concat([SAMPLE_PDF, Buffer.alloc(DOCUMENT_MAX_UPLOAD_BYTES)]);
 
     await post().attach('file', big, { filename: 'big.pdf', contentType: PDF_MIME }).expect(413);
-    expect(storage.putObject).not.toHaveBeenCalled();
+    expect(storage.uploadDocument).not.toHaveBeenCalled();
   });
 
   describe('rejects with 400 and never stores', () => {
@@ -128,7 +125,7 @@ describe('POST /documents/upload (e2e)', () => {
     });
 
     afterEach(() => {
-      expect(storage.putObject).not.toHaveBeenCalled();
+      expect(storage.uploadDocument).not.toHaveBeenCalled();
     });
   });
 
@@ -136,13 +133,13 @@ describe('POST /documents/upload (e2e)', () => {
     antivirus.scan.mockResolvedValue({ clean: false, signature: 'Eicar-Signature' });
 
     await post().attach('file', SAMPLE_PDF, { filename: 'a.pdf', contentType: PDF_MIME }).expect(422);
-    expect(storage.putObject).not.toHaveBeenCalled();
+    expect(storage.uploadDocument).not.toHaveBeenCalled();
   });
 
   it('fails closed when the scanner is unavailable -> 503 and never stores it', async () => {
     antivirus.scan.mockRejectedValue(new ServiceUnavailableException());
 
     await post().attach('file', SAMPLE_PDF, { filename: 'a.pdf', contentType: PDF_MIME }).expect(503);
-    expect(storage.putObject).not.toHaveBeenCalled();
+    expect(storage.uploadDocument).not.toHaveBeenCalled();
   });
 });

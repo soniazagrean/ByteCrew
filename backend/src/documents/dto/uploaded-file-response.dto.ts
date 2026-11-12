@@ -3,8 +3,8 @@ import { DOCUMENT_ALLOWED_TYPES, DocumentFileExt } from '../upload/upload.consta
 
 export class UploadedFileResponseDto {
   @ApiProperty({
-    description: 'Server-generated storage key of the uploaded file',
-    example: 'documents/3f2c9a7e-1b4d-4c8e-9f0a-2d6b5e7c1a90.pdf',
+    description: 'Cloudinary public_id of the uploaded file (use it for signed URLs and delete)',
+    example: 'k3j9x2mq8v1z7r4t',
   })
   fileKey!: string;
 

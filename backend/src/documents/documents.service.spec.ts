@@ -1,13 +1,13 @@
 import { ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { AntivirusService } from '../integrations/antivirus/antivirus.service';
-import { StorageService } from '../integrations/storage/storage.service';
+import { StorageService } from '../storage/storage.service';
 import { DocumentsService } from './documents.service';
 import { DOCUMENT_ALLOWED_TYPES, ValidatedDocumentFile } from './upload/upload.constants';
 
 describe('DocumentsService', () => {
   const calls: string[] = [];
   const antivirus = { scan: jest.fn() };
-  const storage = { putObject: jest.fn() };
+  const storage = { uploadDocument: jest.fn() };
   const service = new DocumentsService(
     antivirus as unknown as AntivirusService,
     storage as unknown as StorageService,
@@ -27,9 +27,9 @@ describe('DocumentsService', () => {
       calls.push('scan');
       return { clean: true };
     });
-    storage.putObject.mockImplementation(async ({ key }: { key: string }) => {
+    storage.uploadDocument.mockImplementation(async () => {
       calls.push('store');
-      return { key };
+      return { public_id: 'cloudinary-public-id' };
     });
   });
 
@@ -41,21 +41,20 @@ describe('DocumentsService', () => {
       expect(calls).toEqual(['scan', 'store']);
     });
 
-    it('stores under a server-generated key with the detected content type', async () => {
+    it('uploads the file buffer under a server-generated name', async () => {
       await service.upload(file);
 
-      expect(storage.putObject).toHaveBeenCalledWith({
-        key: expect.stringMatching(/^documents\/[0-9a-f-]{36}\.pdf$/),
-        body: file.buffer,
-        contentType: 'application/pdf',
-      });
+      expect(storage.uploadDocument).toHaveBeenCalledWith(
+        file.buffer,
+        expect.stringMatching(/^[0-9a-f-]{36}\.pdf$/),
+      );
     });
 
-    it('generates a new key for every upload', async () => {
+    it('generates a new name for every upload', async () => {
       await service.upload(file);
       await service.upload(file);
 
-      const [first, second] = storage.putObject.mock.calls.map(([input]) => input.key);
+      const [first, second] = storage.uploadDocument.mock.calls.map(([, name]) => name);
       expect(first).not.toEqual(second);
     });
 
@@ -63,7 +62,7 @@ describe('DocumentsService', () => {
       const result = await service.upload(file);
 
       expect(result).toEqual({
-        fileKey: expect.stringMatching(/^documents\/[0-9a-f-]{36}\.pdf$/),
+        fileKey: 'cloudinary-public-id',
         fileType: 'pdf',
         sizeBytes: 15,
       });
@@ -73,14 +72,14 @@ describe('DocumentsService', () => {
       antivirus.scan.mockResolvedValue({ clean: false, signature: 'Eicar-Signature' });
 
       await expect(service.upload(file)).rejects.toBeInstanceOf(UnprocessableEntityException);
-      expect(storage.putObject).not.toHaveBeenCalled();
+      expect(storage.uploadDocument).not.toHaveBeenCalled();
     });
 
     it('propagates 503 when the scanner is unavailable and never stores the file', async () => {
       antivirus.scan.mockRejectedValue(new ServiceUnavailableException());
 
       await expect(service.upload(file)).rejects.toBeInstanceOf(ServiceUnavailableException);
-      expect(storage.putObject).not.toHaveBeenCalled();
+      expect(storage.uploadDocument).not.toHaveBeenCalled();
     });
   });
 });
