@@ -2,14 +2,11 @@ import React, { useState } from 'react';
 import { AcademicDocument } from '../../../types/document';
 import { useDocuments, useDownloadDocument } from '../hooks/useDocuments';
 import { UploadModal } from './UploadModal';
-
-const SPECIALIZATIONS = [
-  'Informatică',
-  'Calculatoare',
-  'Automatică și Informatică Aplicată',
-  'Electronică Aplicată',
-  'Telecomunicații',
-];
+import {
+  UBB_FMI_SPECIALIZATIONS,
+  UBB_FMI_SEMESTERS,
+  getYearsForSpecialization,
+} from '../constants/fmiCatalogData';
 
 export function DocumentCatalogPage() {
   const [search, setSearch] = useState('');
@@ -19,6 +16,7 @@ export function DocumentCatalogPage() {
   const [fileType, setFileType] = useState<'pdf' | 'docx' | ''>('');
   const [isUploadOpen, setIsUploadOpen] = useState(false);
 
+  const availableYears = getYearsForSpecialization(specialization);
   const filters = { search, specialization, year, semester, fileType };
   const { data: documents = [], isLoading } = useDocuments(filters);
   const { mutate: downloadDoc, downloadingId } = useDownloadDocument();
@@ -50,12 +48,14 @@ export function DocumentCatalogPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Resurse & Examene</h1>
+          <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 mb-2">
+            UBB Cluj • Facultatea de Matematică și Informatică
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">Resurse & Examene FMI</h1>
           <p className="mt-1 text-sm text-slate-500">
-            Caută subiecte din sesiunile trecute, cursuri sintetizate și rezolvări de laborator
+            Subiecte din sesiune, teste practice, cursuri sintetizate și rezolvări pe specializări
           </p>
         </div>
 
@@ -71,9 +71,7 @@ export function DocumentCatalogPage() {
         </button>
       </div>
 
-      {/* Search & Dynamic Filters Bar */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
-        {/* Search Input */}
         <div className="relative">
           <svg
             className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -92,20 +90,25 @@ export function DocumentCatalogPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Caută după titlu, materie (ex: Sisteme de Operare) sau tag (#examen)..."
+            placeholder="Caută după titlu, materie (ex: Sisteme de Operare, MAP, ML) sau tag (#examen)..."
             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-none"
           />
         </div>
 
-        {/* Filter Dropdowns */}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
           <select
             value={specialization}
-            onChange={(e) => setSpecialization(e.target.value)}
+            onChange={(e) => {
+              const nextSpec = e.target.value;
+              setSpecialization(nextSpec);
+              if (year !== '' && !getYearsForSpecialization(nextSpec).includes(Number(year))) {
+                setYear('');
+              }
+            }}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none"
           >
-            <option value="">Toate specializările</option>
-            {SPECIALIZATIONS.map((spec) => (
+            <option value="">Toate specializările FMI</option>
+            {UBB_FMI_SPECIALIZATIONS.map((spec) => (
               <option key={spec} value={spec}>
                 {spec}
               </option>
@@ -117,11 +120,12 @@ export function DocumentCatalogPage() {
             onChange={(e) => setYear(e.target.value ? Number(e.target.value) : '')}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none"
           >
-            <option value="">Toți anii de studiu</option>
-            <option value={1}>Anul 1</option>
-            <option value={2}>Anul 2</option>
-            <option value={3}>Anul 3</option>
-            <option value={4}>Anul 4</option>
+            <option value="">Toți anii</option>
+            {availableYears.map((y) => (
+              <option key={y} value={y}>
+                Anul {y}
+              </option>
+            ))}
           </select>
 
           <select
@@ -130,8 +134,11 @@ export function DocumentCatalogPage() {
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-500 focus:outline-none"
           >
             <option value="">Ambele semestre</option>
-            <option value={1}>Semestrul 1</option>
-            <option value={2}>Semestrul 2</option>
+            {UBB_FMI_SEMESTERS.map((s) => (
+              <option key={s} value={s}>
+                Semestrul {s}
+              </option>
+            ))}
           </select>
 
           <select
@@ -160,7 +167,6 @@ export function DocumentCatalogPage() {
         </div>
       </div>
 
-      {/* Content Area: Loading / Empty State / Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((n) => (
@@ -176,7 +182,6 @@ export function DocumentCatalogPage() {
           ))}
         </div>
       ) : documents.length === 0 ? (
-        /* Empty State */
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
             <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -214,7 +219,6 @@ export function DocumentCatalogPage() {
           </div>
         </div>
       ) : (
-        /* Document Cards Grid */
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {documents.map((doc: AcademicDocument) => {
             const isDownloading = downloadingId === doc.id;
@@ -226,7 +230,6 @@ export function DocumentCatalogPage() {
                 className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-xs transition-shadow hover:shadow-md"
               >
                 <div>
-                  {/* Top Badges */}
                   <div className="mb-3 flex items-center justify-between gap-2">
                     <span
                       className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-bold uppercase ${
@@ -242,14 +245,12 @@ export function DocumentCatalogPage() {
                     </span>
                   </div>
 
-                  {/* Title & Course */}
                   <h3 className="line-clamp-2 text-base font-semibold text-slate-900">
                     {doc.title}
                   </h3>
                   <p className="mt-1 text-sm font-medium text-indigo-600">{doc.course}</p>
                   <p className="text-xs text-slate-500">{doc.specialization}</p>
 
-                  {/* Tags */}
                   {doc.tags.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {doc.tags.map((tag) => (
@@ -264,7 +265,6 @@ export function DocumentCatalogPage() {
                   )}
                 </div>
 
-                {/* Footer & Download Action */}
                 <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3.5">
                   <div className="text-xs text-slate-400">
                     <span>{formatDate(doc.createdAt)}</span>
@@ -295,7 +295,6 @@ export function DocumentCatalogPage() {
         </div>
       )}
 
-      {/* Upload Modal */}
       <UploadModal
         isOpen={isUploadOpen}
         onClose={() => setIsUploadOpen(false)}

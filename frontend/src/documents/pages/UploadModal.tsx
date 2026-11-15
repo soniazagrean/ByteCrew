@@ -1,5 +1,11 @@
-import React, { useState, useRef, DragEvent, ChangeEvent, KeyboardEvent } from 'react';
+import React, { useState, useRef, DragEvent, ChangeEvent, KeyboardEvent, useEffect } from 'react';
 import { useUploadDocument } from '../hooks/useDocuments';
+import {
+  UBB_FMI_SPECIALIZATIONS,
+  UBB_FMI_SEMESTERS,
+  getYearsForSpecialization,
+  getCoursesForSelection,
+} from '../constants/fmiCatalogData';
 
 export interface UploadModalProps {
   isOpen?: boolean;
@@ -11,16 +17,7 @@ export interface UploadModalProps {
   };
 }
 
-const SPECIALIZATIONS = [
-  'Informatică',
-  'Calculatoare',
-  'Automatică și Informatică Aplicată',
-  'Electronică Aplicată',
-  'Telecomunicații',
-];
-
-const SUGGESTED_TAGS = ['examen', 'curs', 'laborator', 'rezolvari', 'grile', 'restanta'];
-
+const SUGGESTED_TAGS = ['examen', 'practic', 'curs', 'laborator', 'rezolvari', 'restanta', 'barem'];
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024; // 25 MB
 
 export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadModalProps) {
@@ -33,8 +30,8 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
   const [isSuccess, setIsSuccess] = useState(false);
 
   const [title, setTitle] = useState('');
-  const [specialization, setSpecialization] = useState(
-    defaultFilters?.specialization || SPECIALIZATIONS[0]
+  const [specialization, setSpecialization] = useState<string>(
+    defaultFilters?.specialization || UBB_FMI_SPECIALIZATIONS[0]
   );
   const [year, setYear] = useState<number>(
     defaultFilters?.year ? Number(defaultFilters.year) : 1
@@ -45,6 +42,17 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
   const [course, setCourse] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      if (defaultFilters?.specialization) setSpecialization(defaultFilters.specialization);
+      if (defaultFilters?.year) setYear(Number(defaultFilters.year));
+      if (defaultFilters?.semester) setSemester(Number(defaultFilters.semester));
+    }
+  }, [isOpen, defaultFilters]);
+
+  const availableYears = getYearsForSpecialization(specialization);
+  const availableCourses = getCoursesForSelection(specialization, year, semester);
 
   if (!isOpen) return null;
 
@@ -143,7 +151,7 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
       return;
     }
     if (!title.trim() || !course.trim()) {
-      setError('Completează titlul documentului și numele materiei.');
+      setError('Completează titlul documentului și selectează/introdu materia.');
       return;
     }
 
@@ -169,12 +177,11 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
       <div className="w-full max-w-xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Încarcă un document</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Încarcă un document FMI</h2>
             <p className="text-xs text-slate-500">
-              Adaugă subiecte de examen, cursuri sau rezolvări pentru colegii tăi
+              Subiecte de examen, teste practice, cursuri sau rezolvări UBB FMI Cluj
             </p>
           </div>
           <button
@@ -190,7 +197,6 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
           </button>
         </div>
 
-        {/* Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[82vh] overflow-y-auto">
           {error && (
             <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -203,11 +209,10 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
               <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              Documentul a fost încărcat cu succes în catalog!
+              Documentul a fost încărcat cu succes în arhiva FMI!
             </div>
           )}
 
-          {/* Drag & Drop Zone */}
           {!file ? (
             <div
               onDragOver={handleDragOver}
@@ -268,7 +273,6 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
             </div>
           )}
 
-          {/* Titlu */}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">
               Titlu document *
@@ -278,47 +282,36 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={isPending}
-              placeholder="ex: Subiecte Examen Sesiune Iarnă 2026"
+              placeholder="ex: Subiecte Examen Sesiune Iarnă + Barem"
               className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100"
             />
           </div>
 
-          {/* Specializare + Materie */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Specializare *
-              </label>
-              <select
-                value={specialization}
-                onChange={(e) => setSpecialization(e.target.value)}
-                disabled={isPending}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100"
-              >
-                {SPECIALIZATIONS.map((spec) => (
-                  <option key={spec} value={spec}>
-                    {spec}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
-                Materie (Curs) *
-              </label>
-              <input
-                type="text"
-                value={course}
-                onChange={(e) => setCourse(e.target.value)}
-                disabled={isPending}
-                placeholder="ex: Sisteme de Operare"
-                className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Specializare (UBB FMI Cluj) *
+            </label>
+            <select
+              value={specialization}
+              onChange={(e) => {
+                const nextSpec = e.target.value;
+                setSpecialization(nextSpec);
+                if (!getYearsForSpecialization(nextSpec).includes(year)) {
+                  setYear(1);
+                }
+                setCourse('');
+              }}
+              disabled={isPending}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100"
+            >
+              {UBB_FMI_SPECIALIZATIONS.map((spec) => (
+                <option key={spec} value={spec}>
+                  {spec}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* An + Semestru */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
@@ -326,14 +319,18 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
               </label>
               <select
                 value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
+                onChange={(e) => {
+                  setYear(Number(e.target.value));
+                  setCourse('');
+                }}
                 disabled={isPending}
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100"
               >
-                <option value={1}>Anul 1</option>
-                <option value={2}>Anul 2</option>
-                <option value={3}>Anul 3</option>
-                <option value={4}>Anul 4</option>
+                {availableYears.map((y) => (
+                  <option key={y} value={y}>
+                    Anul {y}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -343,17 +340,51 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
               </label>
               <select
                 value={semester}
-                onChange={(e) => setSemester(Number(e.target.value))}
+                onChange={(e) => {
+                  setSemester(Number(e.target.value));
+                  setCourse('');
+                }}
                 disabled={isPending}
                 className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100"
               >
-                <option value={1}>Semestrul 1</option>
-                <option value={2}>Semestrul 2</option>
+                {UBB_FMI_SEMESTERS.map((s) => (
+                  <option key={s} value={s}>
+                    Semestrul {s}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
 
-          {/* Tag-uri */}
+          <div>
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Materie (Curs) *
+            </label>
+            <input
+              type="text"
+              list="fmi-courses-list"
+              value={course}
+              onChange={(e) => setCourse(e.target.value)}
+              disabled={isPending}
+              placeholder={
+                availableCourses.length > 0
+                  ? `Alege din listă sau scrie (ex: ${availableCourses[0]})`
+                  : 'Introdu numele materiei...'
+              }
+              className="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none disabled:bg-slate-100"
+            />
+            <datalist id="fmi-courses-list">
+              {availableCourses.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+            {availableCourses.length > 0 && (
+              <p className="mt-1 text-[11px] text-slate-400">
+                Materii disponibile pentru Anul {year}, Semestrul {semester}: {availableCourses.length}
+              </p>
+            )}
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">
               Tag-uri (apasă Enter sau virgulă)
@@ -382,12 +413,11 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagKeyDown}
                 disabled={isPending}
-                placeholder={tags.length === 0 ? 'ex: examen, rezolvari...' : ''}
+                placeholder={tags.length === 0 ? 'ex: examen, practic, rezolvari...' : ''}
                 className="min-w-[120px] flex-1 border-none bg-transparent text-sm text-slate-900 focus:outline-none"
               />
             </div>
 
-            {/* Sugestii rapide */}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="text-xs text-slate-400">Sugestii:</span>
               {SUGGESTED_TAGS.filter((t) => !tags.includes(t)).map((suggestion) => (
@@ -404,7 +434,6 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
             </div>
           </div>
 
-          {/* Progress Bar */}
           {(isPending || uploadProgress > 0) && (
             <div className="space-y-1.5 pt-1">
               <div className="flex justify-between text-xs font-medium text-slate-600">
@@ -420,7 +449,6 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex items-center justify-end gap-2.5 border-t border-slate-100 pt-4">
             <button
               type="button"
