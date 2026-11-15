@@ -1,1 +1,2 @@
-// barrel — filled in once pages exist
+export { DocumentCatalogPage } from './pages/DocumentCatalogPage';
+export { UploadModal } from './pages/UploadModal';

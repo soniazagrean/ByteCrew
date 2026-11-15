@@ -1,1 +1,6 @@
-// PostCSS config for Tailwind — TODO
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};

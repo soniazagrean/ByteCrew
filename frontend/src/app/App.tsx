@@ -1,3 +1,11 @@
+import React from 'react';
+import { AppProviders } from './providers';
+import { AppRouter } from './router';
+
 export function App() {
-  return null;
+  return (
+    <AppProviders>
+      <AppRouter />
+    </AppProviders>
+  );
 }
