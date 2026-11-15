@@ -1,1 +1,10 @@
-// Tailwind config incl. dark-mode class strategy (Epic 8 Settings) — TODO
+import type { Config } from 'tailwindcss';
+
+export default {
+  darkMode: 'class',
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+} satisfies Config;
