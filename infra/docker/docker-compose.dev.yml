@@ -1,1 +1,11 @@
 # Local Postgres (+ optional MinIO) for development — TODO
+services:
+  clamav:
+    image: clamav/clamav:1.5-debian
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav-db:/var/lib/clamav
+
+volumes:
+  clamav-db:
