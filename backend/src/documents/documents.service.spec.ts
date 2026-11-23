@@ -1,5 +1,6 @@
 import { ServiceUnavailableException, UnprocessableEntityException } from '@nestjs/common';
 import { AntivirusService } from '../integrations/antivirus/antivirus.service';
+import { PrismaService } from '../database/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { DocumentsService } from './documents.service';
 import { DOCUMENT_ALLOWED_TYPES, ValidatedDocumentFile } from './upload/upload.constants';
@@ -11,6 +12,7 @@ describe('DocumentsService', () => {
   const service = new DocumentsService(
     antivirus as unknown as AntivirusService,
     storage as unknown as StorageService,
+    {} as unknown as PrismaService,
   );
 
   const file: ValidatedDocumentFile = {
