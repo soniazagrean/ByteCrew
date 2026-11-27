@@ -208,6 +208,17 @@ function filterMockDocuments(filters: DocumentFilters): AcademicDocument[] {
   });
 }
 
+function uploadErrorMessage(status: number, responseText: string): string {
+  let reason: unknown;
+  try {
+    reason = JSON.parse(responseText).message;
+  } catch {
+    // răspuns non-JSON (ex. de la un proxy)
+  }
+  const detail = Array.isArray(reason) ? reason.join(', ') : reason;
+  return `Încărcarea a eșuat (${status})${typeof detail === 'string' ? `: ${detail}` : '.'}`;
+}
+
 export const documentsApi = {
   async getDocuments(filters: DocumentFilters): Promise<AcademicDocument[]> {
     const params = new URLSearchParams();
@@ -244,87 +255,56 @@ export const documentsApi = {
     payload: UploadDocumentPayload,
     onProgress?: (percent: number) => void
   ): Promise<AcademicDocument> {
-    const docId = crypto.randomUUID();
-    uploadedFilesStore.set(docId, payload.file);
+    // Apel către POST /documents/upload (Multipart + Cloudinary + Antivirus).
+    // Orice eșec este propagat: un fișier respins nu trebuie afișat ca încărcat.
+    const uploadedMeta = await new Promise<{
+      fileKey: string;
+      fileType: 'pdf' | 'docx';
+      sizeBytes: number;
+    }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/documents/upload`);
 
-    try {
-      // Apel real către POST /documents/upload (Multipart + Cloudinary + Antivirus)
-      const uploadedMeta = await new Promise<{
-        fileKey: string;
-        fileType: 'pdf' | 'docx';
-        sizeBytes: number;
-      }>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${API_BASE_URL}/documents/upload`);
-
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            onProgress?.(Math.round((event.loaded / event.total) * 100));
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(JSON.parse(xhr.responseText));
-          } else {
-            reject(new Error(xhr.responseText || 'Upload failed'));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error('Network error'));
-
-        const formData = new FormData();
-        formData.append('file', payload.file);
-        xhr.send(formData);
-      });
-
-      const newDoc: AcademicDocument = {
-        id: docId,
-        title: payload.title.trim(),
-        course: payload.course.trim(),
-        year: payload.year,
-        semester: payload.semester,
-        specialization: payload.specialization,
-        tags: payload.tags,
-        fileKey: uploadedMeta.fileKey,
-        fileType: uploadedMeta.fileType,
-        sizeBytes: uploadedMeta.sizeBytes,
-        downloadCount: 0,
-        uploaderId: 'current-student',
-        createdAt: new Date().toISOString(),
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          onProgress?.(Math.round((event.loaded / event.total) * 100));
+        }
       };
 
-      mockDocuments = [newDoc, ...mockDocuments];
-      return newDoc;
-    } catch {
-      // Fallback dacă backend-ul nu este pornit
-      for (let progress = 10; progress <= 100; progress += 15) {
-        await new Promise((resolve) => setTimeout(resolve, 150));
-        onProgress?.(Math.min(progress, 100));
-      }
-
-      const extension = payload.file.name.split('.').pop()?.toLowerCase();
-      const fileType: 'pdf' | 'docx' = extension === 'docx' ? 'docx' : 'pdf';
-
-      const newDoc: AcademicDocument = {
-        id: docId,
-        title: payload.title.trim(),
-        course: payload.course.trim(),
-        year: payload.year,
-        semester: payload.semester,
-        specialization: payload.specialization,
-        tags: payload.tags,
-        fileKey: `uploads/${Date.now()}-${payload.file.name}`,
-        fileType,
-        sizeBytes: payload.file.size,
-        downloadCount: 0,
-        uploaderId: 'current-student',
-        createdAt: new Date().toISOString(),
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(JSON.parse(xhr.responseText));
+        } else {
+          reject(new Error(uploadErrorMessage(xhr.status, xhr.responseText)));
+        }
       };
 
-      mockDocuments = [newDoc, ...mockDocuments];
-      return newDoc;
-    }
+      xhr.onerror = () => reject(new Error('Nu s-a putut contacta serverul. Încearcă din nou.'));
+
+      const formData = new FormData();
+      formData.append('file', payload.file);
+      xhr.send(formData);
+    });
+
+    const newDoc: AcademicDocument = {
+      id: crypto.randomUUID(),
+      title: payload.title.trim(),
+      course: payload.course.trim(),
+      year: payload.year,
+      semester: payload.semester,
+      specialization: payload.specialization,
+      tags: payload.tags,
+      fileKey: uploadedMeta.fileKey,
+      fileType: uploadedMeta.fileType,
+      sizeBytes: uploadedMeta.sizeBytes,
+      downloadCount: 0,
+      uploaderId: 'current-student',
+      createdAt: new Date().toISOString(),
+    };
+
+    uploadedFilesStore.set(newDoc.id, payload.file);
+    mockDocuments = [newDoc, ...mockDocuments];
+    return newDoc;
   },
 
   async downloadDocument(doc: AcademicDocument): Promise<AcademicDocument> {

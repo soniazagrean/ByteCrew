@@ -169,8 +169,13 @@ export function UploadModal({ isOpen = true, onClose, defaultFilters }: UploadMo
       setTimeout(() => {
         handleClose();
       }, 1100);
-    } catch {
-      setError('A apărut o eroare la încărcare. Încearcă din nou.');
+    } catch (uploadError) {
+      resetProgress();
+      setError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : 'A apărut o eroare la încărcare. Încearcă din nou.'
+      );
     }
   };
 
