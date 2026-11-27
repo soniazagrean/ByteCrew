@@ -1,6 +1,8 @@
 import { INestApplication, ServiceUnavailableException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import * as request from 'supertest';
+import { DatabaseModule } from '../src/database/database.module';
+import { PrismaService } from '../src/database/prisma.service';
 import { DocumentsModule } from '../src/documents/documents.module';
 import { DOCUMENT_MAX_UPLOAD_BYTES } from '../src/documents/upload/upload.constants';
 import { AntivirusService } from '../src/integrations/antivirus/antivirus.service';
@@ -25,7 +27,9 @@ describe('POST /documents/upload (e2e)', () => {
   const post = () => request(app.getHttpServer()).post('/documents/upload');
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [DocumentsModule] })
+    const moduleRef = await Test.createTestingModule({ imports: [DatabaseModule, DocumentsModule] })
+      .overrideProvider(PrismaService)
+      .useValue({}) // the upload route never touches the database
       .overrideProvider(AntivirusService)
       .useValue(antivirus)
       .overrideProvider(StorageService)

@@ -1,1 +1,77 @@
-# Lint -> test -> build -> deploy (Epic 8: Deployment, CI/CD & Monitoring) — TODO
+# Lint -> type check -> test -> build. Deployment is not set up yet.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Throwaway database, used to verify the Prisma migrations.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: studentapp
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d studentapp"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://app:app@localhost:5432/studentapp
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: backend
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+        working-directory: backend
+
+      - name: Check that migrations match the schema
+        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+        working-directory: backend
+
+      - name: Lint
+        run: npm run lint --workspaces
+
+      - name: Type check
+        run: npm run typecheck --workspaces
+
+      - name: Unit tests
+        run: npm test --workspaces
+
+      - name: End-to-end tests
+        run: npm run test:e2e --workspace backend
+
+      - name: Build
+        run: npm run build --workspaces
