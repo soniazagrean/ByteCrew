@@ -122,6 +122,7 @@ describeLive('AntivirusService against a real clamd', () => {
     let RealService!: typeof AntivirusService;
     jest.isolateModules(() => {
       jest.doMock('clamscan', () => jest.requireActual('clamscan'));
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       RealService = require('./antivirus.service').AntivirusService;
     });
     return new RealService();
